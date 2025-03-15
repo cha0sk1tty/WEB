@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<article class="mb-5">
+    <header class="mb-4">
+        <h1 class="fw-bolder mb-1">{{ post.title }}</h1>
+        <div class="text-muted fst-italic mb-2">
+            Опубликовано {{ post.date.strftime('%d.%m.%Y в %H:%M') }}, Автор: {{ post.author }}
+        </div>
+        <img class="img-fluid rounded" src="{{ url_for('static', filename='images/' + post.image_id) }}"
+            alt="Post image">
+    </header>
+
+    <section class="mb-5">
+        <p class="fs-4 mb-4" style="white-space: pre-wrap">{{ post.text }}</p>
+    </section>
+</article>
+
+
+<section class="mb-5">
+    <div class="card bg-light">
+        <div class="card-body">
+            <h4 class="mb-4">Оставьте комментарий</h4>
+            <form method="POST">
+                <div class="mb-3">
+                    <textarea class="form-control" rows="3" placeholder="Ваш комментарий..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Отправить</button>
+            </form>
+        </div>
+    </div>
+</section>
+
+<section class="mb-5">
+    <div class="card bg-light">
+        <div class="card-body">
+            <h4 class="mb-4">Комментарии ({{ post.comments|length }})</h4>
+
+            {% macro render_comments(comments, level=0) %}
+            {% for comment in comments %}
+            <div class="d-flex mb-4 {% if level > 0 %}ms-{% endif %}{{ level * 4}}">
+                <div class="flex-shrink-0">
+                    <div class="avatar-circle">{{ comment.author|first }}</div>
+                </div>
+                <div class="ms-3 flex-grow-1">
+                    <div class="fw-bold">{{ comment.author }}</div>
+                    {{ comment.text }}
+
+                    {% if comment.replies %}
+                    {{ render_comments(comment.replies, level + 1) }}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            {% endmacro %}
+
+            {{ render_comments(post.comments) }}
+        </div>
+    </div>
+</section>
+
+{% endblock %}

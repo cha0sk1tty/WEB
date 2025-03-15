@@ -5,3 +5,40 @@ body {
 .avatar {
     max-width: 100%;
 }
+
+footer {
+    background-color: black;
+    padding: 10px;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+}
+
+footer small:hover {
+    color: gray;
+    text-decoration: underline;
+}
+
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.ms-4 {
+    margin-left: 1.5rem !important;
+}
+
+.ms-8 {
+    margin-left: 3rem !important;
+}
+
+[style*="white-space: pre-wrap"] {
+    white-space: pre-wrap !important;
+}
