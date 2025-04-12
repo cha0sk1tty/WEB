@@ -1,6 +1,8 @@
 import random
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect, url_for
+import random
 from faker import Faker
+import re
 
 fake = Faker()
 
@@ -62,5 +64,83 @@ def post(index):
 def about():
     return render_template("about.html", title="Об авторе")
 
-if __name__=="__main__":
+
+@app.route("/url_params")
+def url_params():
+    return render_template(
+        "url_params.html", title="Параметры URL", params=request.args
+    )
+
+
+@app.route("/headers")
+def headers():
+    return render_template("headers.html", title="Заголовки", headers=request.headers)
+
+
+@app.route("/cookies")
+def cookies():
+    return render_template("cookies.html", title="Cookies", cookies=request.cookies)
+
+
+@app.route("/auth", methods=["GET", "POST"])
+def auth():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        return render_template(
+            "auth_result.html",
+            title="Результат авторизации",
+            username=username,
+            password=password,
+        )
+    return render_template("auth_form.html", title="Форма авторизации")
+
+
+@app.route("/phone", methods=["GET", "POST"])
+def phone():
+    error = None
+    phone_number = None
+    formatted_phone = None
+
+    if request.method == "POST":
+        phone_number = request.form.get("phone_number")
+
+        # Удаляем все разрешенные нецифровые символы
+        cleaned_phone = re.sub(r"[\s\+\(\)\-\.]", "", phone_number)
+
+        # Проверка на недопустимые символы
+        if not cleaned_phone.isdigit():
+            error = {
+                "type": "invalid_chars",
+                "message": "Недопустимый ввод. В номере телефона встречаются недопустимые символы.",
+            }
+        else:
+            # Проверка длины номера
+            if phone_number.startswith(("+7", "8")):
+                required_length = 11
+            else:
+                required_length = 10
+
+            if len(cleaned_phone) != required_length:
+                error = {
+                    "type": "invalid_length",
+                    "message": "Недопустимый ввод. Неверное количество цифр.",
+                }
+            else:
+                # Форматирование номера
+                if phone_number.startswith("+7"):
+                    cleaned_phone = "8" + cleaned_phone[1:]
+
+                formatted_phone = f"8-{cleaned_phone[1:4]}-{cleaned_phone[4:7]}-{cleaned_phone[7:9]}-{cleaned_phone[9:]}"
+
+    return render_template(
+        "phone_form.html",
+        title="Проверка номера телефона",
+        phone_number=phone_number,
+        formatted_phone=formatted_phone,
+        error=error,
+    )
+
+
+if __name__ == "__main__":
     app.run()
