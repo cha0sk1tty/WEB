@@ -2,6 +2,11 @@ body {
     font-size: 1.25rem;
 }
 
+html,
+body {
+    height: 100%;
+}
+
 .avatar {
     max-width: 100%;
 }
