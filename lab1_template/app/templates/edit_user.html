@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="mb-4">Редактирование пользователя</h1>
+
+<form method="POST" action="{{ url_for('edit_user', user_id=user['id']) }}">
+  <div class="mb-3">
+    <label class="form-label">Логин</label>
+    <input type="text" class="form-control" value="{{ user['login'] }}" readonly>
+  </div>
+  
+  <div class="mb-3">
+    <label for="last_name" class="form-label">Фамилия</label>
+    <input type="text" class="form-control {% if 'last_name' in errors %}is-invalid{% endif %}" 
+           id="last_name" name="last_name" value="{{ request.form.last_name or user['last_name'] or '' }}">
+    {% if 'last_name' in errors %}
+    <div class="invalid-feedback">{{ errors.last_name }}</div>
+    {% endif %}
+  </div>
+  
+  <div class="mb-3">
+    <label for="first_name" class="form-label">Имя</label>
+    <input type="text" class="form-control {% if 'first_name' in errors %}is-invalid{% endif %}" 
+           id="first_name" name="first_name" value="{{ request.form.first_name or user['first_name'] }}" required>
+    {% if 'first_name' in errors %}
+    <div class="invalid-feedback">{{ errors.first_name }}</div>
+    {% endif %}
+  </div>
+  
+  <div class="mb-3">
+    <label for="middle_name" class="form-label">Отчество</label>
+    <input type="text" class="form-control {% if 'middle_name' in errors %}is-invalid{% endif %}" 
+           id="middle_name" name="middle_name" value="{{ request.form.middle_name or user['middle_name'] or '' }}">
+    {% if 'middle_name' in errors %}
+    <div class="invalid-feedback">{{ errors.middle_name }}</div>
+    {% endif %}
+  </div>
+  
+  <div class="mb-3">
+    <label for="role_id" class="form-label">Роль</label>
+    <select class="form-select" id="role_id" name="role_id">
+      <option value="">-- Без роли --</option>
+      {% for role in roles %}
+      <option value="{{ role['id'] }}" {% if (request.form.role_id and request.form.role_id|int == role['id']) or (user['role_id'] == role['id']) %}selected{% endif %}>
+        {{ role['name'] }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  
+  <button type="submit" class="btn btn-primary">Сохранить</button>
+</form>
+{% endblock %}
