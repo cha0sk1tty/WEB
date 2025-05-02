@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Статистика посещений по пользователям</h1>
+    
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>№</th>
+                <th>Пользователь</th>
+                <th>Количество посещений</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stat in stats %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ stat['user_name'] }}</td>
+                <td>{{ stat['count'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <a href="{{ url_for('reports.visits_by_user_csv') }}" class="btn btn-primary">Экспорт в CSV</a>
+    <a href="{{ url_for('reports.visits') }}" class="btn btn-secondary">Назад</a>
+</div>
+{% endblock %}
