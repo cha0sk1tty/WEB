@@ -8,6 +8,8 @@ from flask import (
     session,
     make_response,
 )
+import io
+import csv
 from flask_login import (
     LoginManager,
     UserMixin,
@@ -377,19 +379,28 @@ def visits_by_page_csv():
     db = get_db()
     stats = db.execute(
         """
-    SELECT path, COUNT(*) as count
-    FROM visit_logs
-    GROUP BY path
-    ORDER BY count DESC
-    """
+        SELECT path, COUNT(*) as count
+        FROM visit_logs
+        GROUP BY path
+        ORDER BY count DESC
+        """
     ).fetchall()
 
-    csv = "№,Страница,Количество посещений\n"
-    for i, row in enumerate(stats, 1):
-        csv += f"{i},{row['path']},{row['count']}\n"
 
-    response = make_response(csv)
-    response.headers["Content-Type"] = "text/csv"
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=",")
+
+
+    output.write("\ufeff")
+    writer.writerow(["№", "Страница", "Количество посещений"])
+
+    # Записываем данные
+    for i, row in enumerate(stats, 1):
+        writer.writerow([i, row["path"], row["count"]])
+
+    # Создаем response 
+    response = make_response(output.getvalue())
+    response.headers["Content-Type"] = "text/csv; charset=utf-8-sig"
     response.headers["Content-Disposition"] = "attachment; filename=visits_by_page.csv"
     return response
 
@@ -424,25 +435,36 @@ def visits_by_user_csv():
     db = get_db()
     stats = db.execute(
         """
-    SELECT 
-        CASE 
-            WHEN u.id IS NULL THEN 'Неаутентифицированный пользователь'
-            ELSE u.first_name || ' ' || COALESCE(u.last_name, '') || ' ' || COALESCE(u.middle_name, '')
-        END as user_name,
-        COUNT(*) as count
-    FROM visit_logs v
-    LEFT JOIN users u ON v.user_id = u.id
-    GROUP BY user_name
-    ORDER BY count DESC
-    """
+        SELECT 
+            CASE 
+                WHEN u.id IS NULL THEN 'Неаутентифицированный пользователь'
+                ELSE u.first_name || ' ' || COALESCE(u.last_name, '') || ' ' || COALESCE(u.middle_name, '')
+            END as user_name,
+            COUNT(*) as count
+        FROM visit_logs v
+        LEFT JOIN users u ON v.user_id = u.id
+        GROUP BY user_name
+        ORDER BY count DESC
+        """
     ).fetchall()
 
-    csv = "№,Пользователь,Количество посещений\n"
+    # Создаем CSV
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=',')
+    
+    # Добавляем BOM 
+    output.write('\ufeff')
+    
+    # Записываем заголовки
+    writer.writerow(['№', 'Пользователь', 'Количество посещений'])
+    
+    # Записываем данные
     for i, row in enumerate(stats, 1):
-        csv += f"{i},{row['user_name']},{row['count']}\n"
+        writer.writerow([i, row['user_name'], row['count']])
 
-    response = make_response(csv)
-    response.headers["Content-Type"] = "text/csv"
+    # Создаем response
+    response = make_response(output.getvalue())
+    response.headers["Content-Type"] = "text/csv; charset=utf-8-sig"
     response.headers["Content-Disposition"] = "attachment; filename=visits_by_user.csv"
     return response
 
@@ -452,7 +474,6 @@ app.register_blueprint(reports_bp, url_prefix="/reports")
 
 
 @app.route("/users/<int:user_id>")
-@login_required
 def view_user(user_id):
     db = get_db()
     user = db.execute(
@@ -517,30 +538,31 @@ def change_password():
 
     return render_template("change_password.html", errors=errors)
 
-@app.route('/users/create', methods=['GET', 'POST'])
+
+@app.route("/users/create", methods=["GET", "POST"])
 @login_required
 def create_user():
     db = get_db()
-    roles = db.execute('SELECT id, name FROM roles').fetchall()
+    roles = db.execute("SELECT id, name FROM roles").fetchall()
     errors = {}
-    
-    if request.method == 'POST':
+
+    if request.method == "POST":
         print("\n[DEBUG] Получены данные формы:", request.form)
-        
-        login = request.form.get('login')
-        password = request.form.get('password')
-        last_name = request.form.get('last_name')
-        first_name = request.form.get('first_name')
-        middle_name = request.form.get('middle_name')
-        role_id = request.form.get('role_id')
+
+        login = request.form.get("login")
+        password = request.form.get("password")
+        last_name = request.form.get("last_name")
+        first_name = request.form.get("first_name")
+        middle_name = request.form.get("middle_name")
+        role_id = request.form.get("role_id")
 
         # Валидация данных
         if not login:
-            errors['login'] = 'Логин обязателен'
+            errors["login"] = "Логин обязателен"
         if not password:
-            errors['password'] = 'Пароль обязателен'
+            errors["password"] = "Пароль обязателен"
         if not first_name:
-            errors['first_name'] = 'Имя обязательно'
+            errors["first_name"] = "Имя обязательно"
 
         if not errors:
             try:
@@ -553,94 +575,116 @@ def create_user():
                 print("[DEBUG] Хеш пароля создан")
 
                 # Вставляем пользователя
-                db.execute('''
+                db.execute(
+                    """
                 INSERT INTO users (login, password_hash, last_name, first_name, middle_name, role_id)
                 VALUES (?, ?, ?, ?, ?, ?)
-                ''', (login, password_hash, last_name or None, first_name, middle_name or None, role_id or None))
-                
+                """,
+                    (
+                        login,
+                        password_hash,
+                        last_name or None,
+                        first_name,
+                        middle_name or None,
+                        role_id or None,
+                    ),
+                )
+
                 # Явно фиксируем транзакцию
                 db.commit()
                 print("[DEBUG] Запись добавлена в БД, транзакция зафиксирована")
 
-                flash('Пользователь успешно создан', 'success')
-                return redirect(url_for('index'))
+                flash("Пользователь успешно создан", "success")
+                return redirect(url_for("index"))
 
             except sqlite3.IntegrityError as e:
                 db.rollback()
                 if "UNIQUE constraint failed: users.login" in str(e):
-                    errors['login'] = 'Пользователь с таким логином уже существует'
+                    errors["login"] = "Пользователь с таким логином уже существует"
                 else:
-                    errors['database'] = 'Ошибка базы данных'
+                    errors["database"] = "Ошибка базы данных"
                 print("[ERROR] Ошибка БД:", str(e))
 
             except Exception as e:
                 db.rollback()
-                errors['database'] = 'Неизвестная ошибка'
+                errors["database"] = "Неизвестная ошибка"
                 print("[ERROR] Неизвестная ошибка:", str(e))
 
         if errors:
             print("[DEBUG] Ошибки валидации:", errors)
             for field, message in errors.items():
-                flash(f'{field}: {message}', 'danger')
+                flash(f"{field}: {message}", "danger")
 
-    return render_template('create_user.html', roles=roles, errors=errors)
+    return render_template("create_user.html", roles=roles, errors=errors)
 
-@app.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
+
+@app.route("/users/<int:user_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_user(user_id):
     db = get_db()
-    user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
-    roles = db.execute('SELECT id, name FROM roles').fetchall()
+    user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    roles = db.execute("SELECT id, name FROM roles").fetchall()
     errors = {}
-    
+
     if not user:
-        flash('Пользователь не найден', 'danger')
-        return redirect(url_for('index'))
-    
-    if request.method == 'POST':
-        last_name = request.form.get('last_name')
-        first_name = request.form.get('first_name')
-        middle_name = request.form.get('middle_name')
-        role_id = request.form.get('role_id')
-        
+        flash("Пользователь не найден", "danger")
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        last_name = request.form.get("last_name")
+        first_name = request.form.get("first_name")
+        middle_name = request.form.get("middle_name")
+        role_id = request.form.get("role_id")
+
         # Валидация
         if not first_name:
-            errors['first_name'] = 'Имя не может быть пустым'
-        
+            errors["first_name"] = "Имя не может быть пустым"
+
+        # Если пользователь не администратор, сохраняем его текущую роль
+        if current_user.role_name != "Администратор":
+            role_id = user["role_id"]
+
         if not errors:
             try:
-                db.execute('''
+                db.execute(
+                    """
                 UPDATE users
                 SET last_name = ?, first_name = ?, middle_name = ?, role_id = ?
                 WHERE id = ?
-                ''', (last_name or None, first_name, middle_name or None, role_id or None, user_id))
+                """,
+                    (
+                        last_name or None,
+                        first_name,
+                        middle_name or None,
+                        role_id,
+                        user_id,
+                    ),
+                )
                 db.commit()
-                flash('Пользователь успешно обновлен', 'success')
-                return redirect(url_for('index'))
+                flash("Пользователь успешно обновлен", "success")
+                return redirect(url_for("index"))
             except Exception as e:
                 db.rollback()
-                flash(f'Ошибка при обновлении пользователя: {str(e)}', 'danger')
-    
-    return render_template('edit_user.html', user=user, roles=roles, errors=errors)
+                flash(f"Ошибка при обновлении пользователя: {str(e)}", "danger")
 
-@app.route('/users/<int:user_id>/delete', methods=['POST'])
+    return render_template("edit_user.html", user=user, roles=roles, errors=errors)
+
+
+@app.route("/users/<int:user_id>/delete", methods=["POST"])
 @login_required
 def delete_user(user_id):
     db = get_db()
     try:
-        db.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        db.execute("DELETE FROM users WHERE id = ?", (user_id,))
         db.commit()
-        flash('Пользователь успешно удален', 'success')
+        flash("Пользователь успешно удален", "success")
     except Exception as e:
         db.rollback()
-        flash(f'Ошибка при удалении пользователя: {str(e)}', 'danger')
-    return redirect(url_for('index'))
+        flash(f"Ошибка при удалении пользователя: {str(e)}", "danger")
+    return redirect(url_for("index"))
+
 
 if __name__ == "__main__":
-    with app.app_context():  # Создаем контекст
+    with app.app_context():
         init_db()
-        # Проверка маршрутов
-        print("Проверка маршрутов:")
-        for rule in app.url_map.iter_rules():
-            print(f"{rule.endpoint}: {rule}")
     app.run(debug=True)

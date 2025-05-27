@@ -3,12 +3,14 @@
 {% block content %}
 <div class="container">
     <h1 class="my-4">Журнал посещений</h1>
-    
+
+    {% if current_user.role_name == 'Администратор' %}
     <div class="mb-3">
         <a href="{{ url_for('reports.visits_by_page') }}" class="btn btn-primary">Отчет по страницам</a>
         <a href="{{ url_for('reports.visits_by_user') }}" class="btn btn-primary">Отчет по пользователям</a>
     </div>
-    
+    {% endif %}
+
     <table class="table table-striped">
         <thead>
             <tr>
@@ -24,9 +26,9 @@
                 <td>{{ loop.index + (page-1)*per_page }}</td>
                 <td>
                     {% if log['first_name'] %}
-                        {{ log['last_name'] or '' }} {{ log['first_name'] }} {{ log['middle_name'] or '' }}
+                    {{ log['last_name'] or '' }} {{ log['first_name'] }} {{ log['middle_name'] or '' }}
                     {% else %}
-                        Неаутентифицированный пользователь
+                    Неаутентифицированный пользователь
                     {% endif %}
                 </td>
                 <td>{{ log['path'] }}</td>
@@ -35,7 +37,7 @@
             {% endfor %}
         </tbody>
     </table>
-    
+
     <nav>
         <ul class="pagination">
             {% if page > 1 %}
@@ -43,13 +45,43 @@
                 <a class="page-link" href="{{ url_for('reports.visits', page=page-1) }}">Предыдущая</a>
             </li>
             {% endif %}
+
+            {# Всего страниц #}
+            {% set total_pages = (total//per_page)+1 %}
             
-            {% for p in range(1, (total//per_page)+2) %}
+            {# Показываем первую страницу #}
+            <li class="page-item {% if 1 == page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('reports.visits', page=1) }}">1</a>
+            </li>
+
+            {# Если текущая страница далеко от начала #}
+            {% if page > 3 %}
+            <li class="page-item disabled">
+                <span class="page-link">...</span>
+            </li>
+            {% endif %}
+
+            {# Показываем страницы вокруг текущей #}
+            {% for p in range([2, page-1]|max, [page+2, total_pages]|min) %}
             <li class="page-item {% if p == page %}active{% endif %}">
                 <a class="page-link" href="{{ url_for('reports.visits', page=p) }}">{{ p }}</a>
             </li>
             {% endfor %}
-            
+
+            {# Если текущая страница далеко от конца #}
+            {% if page < total_pages - 2 %}
+            <li class="page-item disabled">
+                <span class="page-link">...</span>
+            </li>
+            {% endif %}
+
+            {# Показываем последнюю страницу, если она не первая #}
+            {% if total_pages > 1 %}
+            <li class="page-item {% if total_pages == page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('reports.visits', page=total_pages) }}">{{ total_pages }}</a>
+            </li>
+            {% endif %}
+
             {% if page*per_page < total %}
             <li class="page-item">
                 <a class="page-link" href="{{ url_for('reports.visits', page=page+1) }}">Следующая</a>
